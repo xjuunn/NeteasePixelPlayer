@@ -26,6 +26,7 @@ import androidx.activity.viewModels
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.annotation.CallSuper
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -644,7 +645,13 @@ class MainActivity : ComponentActivity() {
                 Screen.RecentlyPlayed.route,
                 Screen.DeviceCapabilities.route,
                 Screen.EasterEgg.route,
-                Screen.WordDelimiterConfig.route
+                Screen.WordDelimiterConfig.route,
+                // Cloud service dashboards (opened from Settings > Accounts) are full-screen
+                // detail pages, so the bottom tab bar must not overlap their lists.
+                Screen.NeteaseDashboard.route,
+                Screen.QqMusicDashboard.route,
+                Screen.NavidromeDashboard.route,
+                Screen.JellyfinDashboard.route
             )
         }
         val shouldHideNavigationBar by remember(currentRoute, isSearchBarActive) {
@@ -1157,6 +1164,7 @@ private class BlurEffectCache {
     private var lastRadiusPx: Float = Float.NaN
     private var cached: androidx.compose.ui.graphics.RenderEffect? = null
 
+    @RequiresApi(Build.VERSION_CODES.S)
     fun get(radiusPx: Float): androidx.compose.ui.graphics.RenderEffect? {
         if (radiusPx <= 0f) {
             lastRadiusPx = 0f

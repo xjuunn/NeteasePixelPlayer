@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.theveloper.pixelplay.data.database.NeteasePlaylistEntity
+import com.theveloper.pixelplay.presentation.components.MiniPlayerHeight
 import com.theveloper.pixelplay.presentation.components.SmartImage
 import com.theveloper.pixelplay.ui.theme.GoogleSansRounded
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
@@ -236,6 +237,7 @@ fun NeteaseDashboardScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f)
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -266,7 +268,17 @@ fun NeteaseDashboardScreen(
                 }
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 4.dp,
+                        // Reserve room for the mini player and the system navigation bar so the
+                        // tail of a long playlist stays reachable.
+                        bottom = MiniPlayerHeight +
+                            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+                            16.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(
