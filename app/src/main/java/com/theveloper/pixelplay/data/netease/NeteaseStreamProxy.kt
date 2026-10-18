@@ -22,7 +22,9 @@ class NeteaseStreamProxy @Inject constructor(
         "music.126.net",
         "music.163.com",
         "126.net",
-        "163.com"
+        "163.com",
+        // Qijieya returns the audio stream itself, so the proxy fetches directly from it.
+        "qijieya.cn"
     )
     override val cacheExpirationMs = 15L * 60 * 1000
     override val proxyTag = "NeteaseStreamProxy"

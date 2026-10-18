@@ -18,6 +18,8 @@ import com.theveloper.pixelplay.data.database.serializeArtistRefs
 import com.theveloper.pixelplay.data.database.toSong
 import com.theveloper.pixelplay.data.model.ArtistRef
 import com.theveloper.pixelplay.data.model.Song
+import com.theveloper.pixelplay.data.netease.lyric.SongLyricResolver
+import com.theveloper.pixelplay.data.netease.url.SongUrlResolver
 import com.theveloper.pixelplay.data.network.netease.NeteaseApiService
 import com.theveloper.pixelplay.data.preferences.PlaylistPreferencesRepository
 import com.theveloper.pixelplay.data.preferences.UserPreferencesRepository
@@ -26,15 +28,12 @@ import com.theveloper.pixelplay.data.stream.CloudMusicUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
@@ -46,6 +45,8 @@ import javax.inject.Singleton
 @Singleton
 class NeteaseRepository @Inject constructor(
     private val api: NeteaseApiService,
+    private val songUrlResolver: SongUrlResolver,
+    private val songLyricResolver: SongLyricResolver,
     private val dao: NeteaseDao,
     private val musicDao: MusicDao,
     private val playlistPreferencesRepository: PlaylistPreferencesRepository,
@@ -85,10 +86,6 @@ class NeteaseRepository @Inject constructor(
     private val inFlightSongUrlRequests = java.util.concurrent.ConcurrentHashMap<Long, CompletableDeferred<Result<String>>>()
     private val lastSongUrlAttemptAtMs = java.util.concurrent.ConcurrentHashMap<Long, Long>()
     private val songUrlRequestCooldownMs = 1500L
-    private val neteaseSongUrlRequestMutex = Mutex()
-    @Volatile
-    private var lastGlobalSongUrlRequestAtMs = 0L
-    private val globalSongUrlRequestIntervalMs = 1100L
 
     init {
         // Auto-load saved cookies on creation so API client is ready
@@ -510,33 +507,9 @@ class NeteaseRepository @Inject constructor(
 
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                // Try the requested level first (e.g. "lossless" for SVIP accounts),
-                // then degrade gracefully so non-privileged accounts still resolve a URL.
-                val qualityFallbacks = linkedSetOf(quality, "exhigh", "higher", "standard")
-                var lastFailure: String? = null
-
-                for (level in qualityFallbacks) {
-                    val raw = requestSongUrl(songId, level)
-                    val root = JSONObject(raw)
-                    val code = root.optInt("code", -1)
-                    if (code != 200) {
-                        lastFailure = "API code=$code for level=$level"
-                        continue
-                    }
-
-                    val data = root.optJSONArray("data")
-                    val urlObj = data?.optJSONObject(0)
-                    val url = urlObj?.optString("url", "")
-                    if (!url.isNullOrBlank() && url != "null") {
-                        Timber.d("Resolved Netease URL for songId=$songId with level=$level")
-                        return@runCatching url
-                    }
-
-                    val freeTrialInfo = urlObj?.opt("freeTrialInfo")
-                    lastFailure = "Empty URL at level=$level, freeTrialInfo=$freeTrialInfo"
-                }
-
-                throw Exception("No URL available for song $songId ($lastFailure)")
+                // Delegate to the provider chain: official -> Byfuns -> Qijieya -> Mycelis.
+                // See docs/netease-integration.md for the priority and retry rules.
+                songUrlResolver.resolve(songId, quality).getOrThrow().url
             }
         }
 
@@ -545,37 +518,11 @@ class NeteaseRepository @Inject constructor(
         return result
     }
 
-    /**
-     * Make a single song URL request with global rate-limit guard.
-     */
-    private suspend fun requestSongUrl(songId: Long, level: String): String {
-        neteaseSongUrlRequestMutex.withLock {
-            val now = System.currentTimeMillis()
-            val waitMs = globalSongUrlRequestIntervalMs - (now - lastGlobalSongUrlRequestAtMs)
-            if (waitMs > 0) delay(waitMs)
-            lastGlobalSongUrlRequestAtMs = System.currentTimeMillis()
-        }
-        return api.getSongDownloadUrl(songId, level)
-    }
-
     // ─── Lyrics ────────────────────────────────────────────────────────
 
     suspend fun getLyrics(songId: Long): Result<String> {
         return withContext(Dispatchers.IO) {
-            try {
-                val raw = api.getLyrics(songId)
-                val root = JSONObject(raw)
-                val lyric = root.optJSONObject("lrc")?.optString("lyric", "")
-
-                if (!lyric.isNullOrBlank()) {
-                    Result.success(lyric)
-                } else {
-                    Result.failure(Exception("No lyrics for song $songId"))
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to get lyrics for song $songId")
-                Result.failure(e)
-            }
+            songLyricResolver.resolve(songId)
         }
     }
 
