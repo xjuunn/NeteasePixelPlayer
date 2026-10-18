@@ -137,6 +137,19 @@ private val CoreMaintainer = Contributor(
     githubUrl = "https://github.com/theovilardo",
 )
 
+private val ForkMaintainer = Contributor(
+    id = "xjuunn",
+    displayName = "Junhsiun",
+    role = "分支维护者",
+    avatarUrl = "https://avatars.githubusercontent.com/u/145442547?v=4",
+    iconRes = R.drawable.round_developer_board_24,
+    githubUrl = "https://github.com/xjuunn",
+)
+
+private val Maintainers = listOf(CoreMaintainer, ForkMaintainer)
+
+private val MaintainerIds = Maintainers.map { it.id }.toSet()
+
 private val PinnedCommunityMembers = listOf(
     Contributor(
         id = "lostf1sh",
@@ -202,7 +215,7 @@ fun AboutScreen(
             val result = githubService.fetchContributors()
             result.onSuccess { githubContributors ->
                 contributors = githubContributors
-                    .filter { normalizeHandle(it.login) != CoreMaintainer.id }
+                    .filter { normalizeHandle(it.login) !in MaintainerIds }
                     .map { github ->
                         Contributor(
                             id = normalizeHandle(github.login),
@@ -249,7 +262,7 @@ fun AboutScreen(
 
     val excludedIds = remember(spotlightContributors) {
         buildSet {
-            add(CoreMaintainer.id)
+            addAll(MaintainerIds)
             spotlightContributors.forEach { spotlight ->
                 add(spotlight.id)
                 addAll(PinnedAliases[spotlight.id].orEmpty())
@@ -386,15 +399,19 @@ fun AboutScreen(
                 )
             }
 
-            item(key = "maintainer_card") {
+            itemsIndexed(
+                items = Maintainers,
+                key = { _, contributor -> "maintainer_${contributor.id}" },
+            ) { index, contributor ->
                 ContributorCard(
-                    contributor = CoreMaintainer,
-                    shape = expressiveListShape(index = 0, count = 1),
+                    contributor = contributor,
+                    shape = expressiveListShape(index = index, count = Maintainers.size),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .padding(top = if (index == 0) 0.dp else 3.dp),
                     showContributionCount = false,
-                    onCardClick = CoreMaintainer.githubUrl?.let { url -> { openUrl(context, url) } },
+                    onCardClick = contributor.githubUrl?.let { url -> { openUrl(context, url) } },
                 )
             }
 
@@ -663,15 +680,26 @@ private fun AboutHeroCard(
                         subtitle = stringResource(R.string.about_github_subtitle),
                         iconRes = R.drawable.github,
                         contentDescription = stringResource(R.string.about_cd_open_github_repo),
-                        onClick = { openUrl(context, "https://github.com/theovilardo/PixelPlayer") },
+                        onClick = { openUrl(context, "https://github.com/xjuunn/NeteasePixelPlayer") },
                         modifier = Modifier.weight(1f),
                     )
+                    // Telegram 按钮已移除，替换为分支维护者主页
+                    /*
                     SocialChip(
                         label = stringResource(R.string.about_telegram_label),
                         subtitle = stringResource(R.string.about_telegram_subtitle),
                         iconRes = R.drawable.telegram,
                         contentDescription = stringResource(R.string.about_cd_join_telegram),
                         onClick = { openUrl(context, "https://t.me/thevelopersupport") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    */
+                    SocialChip(
+                        label = stringResource(R.string.about_homepage_label),
+                        subtitle = stringResource(R.string.about_homepage_subtitle),
+                        iconRes = R.drawable.github,
+                        contentDescription = stringResource(R.string.about_cd_open_homepage),
+                        onClick = { openUrl(context, "https://github.com/xjuunn") },
                         modifier = Modifier.weight(1f),
                     )
                 }

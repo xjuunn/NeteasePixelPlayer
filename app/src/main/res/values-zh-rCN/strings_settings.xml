@@ -639,6 +639,9 @@
     <string name="about_telegram_subtitle">支持</string>
     <string name="about_cd_open_github_repo">打开 GitHub 仓库</string>
     <string name="about_cd_join_telegram">加入 Telegram 社区</string>
+    <string name="about_homepage_label">个人主页</string>
+    <string name="about_homepage_subtitle">分支维护者</string>
+    <string name="about_cd_open_homepage">打开分支维护者主页</string>
     <string name="about_cd_open_github_profile">打开 GitHub 个人资料</string>
     <string name="about_cd_open_telegram">打开 Telegram</string>
     <string name="about_cd_contributor_avatar">%1$s 的头像</string>

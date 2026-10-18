@@ -648,6 +648,9 @@
     <string name="about_telegram_subtitle">Support</string>
     <string name="about_cd_open_github_repo">Open GitHub repository</string>
     <string name="about_cd_join_telegram">Join Telegram community</string>
+    <string name="about_homepage_label">Homepage</string>
+    <string name="about_homepage_subtitle">Maintainer</string>
+    <string name="about_cd_open_homepage">Open maintainer homepage</string>
     <string name="about_cd_open_github_profile">Open GitHub profile</string>
     <string name="about_cd_open_telegram">Open Telegram</string>
     <string name="about_cd_contributor_avatar">Avatar of %1$s</string>
