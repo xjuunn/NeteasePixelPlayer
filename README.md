@@ -4,9 +4,6 @@
   <img src="assets/PixelPlayer.svg" alt="App Icon" height="250"/>
 </p>
 <p align="center">
-<a href="https://trendshift.io/repositories/15551" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15551" alt="PixelPlayerHQ%2FPixelPlayer | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</p>
-<p align="center">
   <strong>A beautiful, feature-rich music player for Android</strong><br>
   Built with Jetpack Compose and Material Design 3
 </p>
@@ -19,11 +16,11 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/theovilardo/PixelPlayer/releases/latest">
-        <img src="https://img.shields.io/github/v/release/theovilardo/PixelPlayer?include_prereleases&logo=github&style=for-the-badge&label=Latest%20Release" alt="Latest Release">
+    <a href="https://github.com/xjuunn/NeteasePixelPlayer/releases/latest">
+        <img src="https://img.shields.io/github/v/release/xjuunn/NeteasePixelPlayer?include_prereleases&logo=github&style=for-the-badge&label=Latest%20Release" alt="Latest Release">
     </a>
-    <a href="https://github.com/theovilardo/PixelPlayer/releases">
-        <img src="https://img.shields.io/github/downloads/theovilardo/PixelPlayer/total?logo=github&style=for-the-badge" alt="Total Downloads">
+    <a href="https://github.com/xjuunn/NeteasePixelPlayer/releases">
+        <img src="https://img.shields.io/github/downloads/xjuunn/NeteasePixelPlayer/total?logo=github&style=for-the-badge" alt="Total Downloads">
     </a>
     <img src="https://img.shields.io/badge/Android-11%2B-green?style=for-the-badge&logo=android" alt="Android 11+">
     <img src="https://img.shields.io/badge/Kotlin-100%25-purple?style=for-the-badge&logo=kotlin" alt="Kotlin">
@@ -126,7 +123,7 @@
 
 1. **Clone the repository**
    ```sh
-   git clone https://github.com/theovilardo/PixelPlayer.git
+   git clone https://github.com/xjuunn/NeteasePixelPlayer.git
    ```
 
 2. **Open in Android Studio**
@@ -147,13 +144,13 @@
 ## ⬇️ Download
 
 <p align="center">
-  <a href="https://github.com/theovilardo/PixelPlayer/releases/latest">
+  <a href="https://github.com/xjuunn/NeteasePixelPlayer/releases/latest">
     <img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" alt="Get it on GitHub" height="60">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.theveloper.pixelplay%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Ftheovilardo%2FPixelPlayer%22%2C%22author%22%3A%22theovilardo%22%2C%22name%22%3A%22PixelPlayer%22%2C%22supportFixedAPKURL%22%3Afalse%7D">
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.theveloper.pixelplay%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fxjuunn%2FNeteasePixelPlayer%22%2C%22author%22%3A%22xjuunn%22%2C%22name%22%3A%22PixelPlayer%22%2C%22supportFixedAPKURL%22%3Afalse%7D">
     <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="50">
   </a>
 </p>

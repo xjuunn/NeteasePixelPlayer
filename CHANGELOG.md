@@ -40,11 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Other:** Fixed backup playlist update issues and startup AI provider errors.
 
 ### New Contributors
-- @YtMechnij made their first contribution in https://github.com/theovilardo/PixelPlayer/pull/2106
-- @juinc made their first contribution in https://github.com/theovilardo/PixelPlayer/pull/2109
-- @ZL114514 made their first contribution in https://github.com/theovilardo/PixelPlayer/pull/2159
-- @aliabbasov99 made their first contribution in https://github.com/theovilardo/PixelPlayer/pull/2262
-- @Hisham-Alzamzami made their first contribution in https://github.com/theovilardo/PixelPlayer/pull/2335
+- @YtMechnij made their first contribution in https://github.com/xjuunn/NeteasePixelPlayer/pull/2106
+- @juinc made their first contribution in https://github.com/xjuunn/NeteasePixelPlayer/pull/2109
+- @ZL114514 made their first contribution in https://github.com/xjuunn/NeteasePixelPlayer/pull/2159
+- @aliabbasov99 made their first contribution in https://github.com/xjuunn/NeteasePixelPlayer/pull/2262
+- @Hisham-Alzamzami made their first contribution in https://github.com/xjuunn/NeteasePixelPlayer/pull/2335
 
 
 ## [0.7.0-beta] - 2026-05-25
