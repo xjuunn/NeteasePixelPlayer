@@ -102,6 +102,7 @@
     <string name="home_your_mix_title">Ваш\nмикс</string>
     <string name="home_empty_placeholder_title">Пока нет данных для отображения</string>
     <string name="home_empty_placeholder_subtitle">Ваш микс появится здесь, когда PixelPlayer найдёт песни или синхронизирует источник.</string>
+    <string name="home_empty_placeholder_connect_hint">Подключите музыкальный источник, чтобы начать прослушивание</string>
     <string name="home_empty_placeholder_refresh">Обновить</string>
 
     <!-- DailyMixSection -->

@@ -102,6 +102,7 @@
     <string name="home_your_mix_title">你的\n推荐</string>
     <string name="home_empty_placeholder_title">暂无数据</string>
     <string name="home_empty_placeholder_subtitle">当 PixelPlayer 发现歌曲或同步数据源时，您的推荐将显示在此处。</string>
+    <string name="home_empty_placeholder_connect_hint">连接一个音源，开始听歌</string>
     <string name="home_empty_placeholder_refresh">刷新</string>
 
     <!-- DailyMixSection -->

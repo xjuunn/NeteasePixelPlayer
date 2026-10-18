@@ -101,6 +101,7 @@
     <!-- Your Mix -->
     <string name="home_your_mix_title">Your\nMix</string>
     <string name="home_empty_placeholder_title">Ancora nessun dato da mostrare</string>
+    <string name="home_empty_placeholder_connect_hint">Collega una fonte musicale per iniziare ad ascoltare</string>
     <string name="home_empty_placeholder_subtitle">Il tuo mix apparirà qui quando PixelPlayer troverà brani o sincronizzerà una sorgente.</string>
     <string name="home_empty_placeholder_refresh">Aggiorna</string>
 

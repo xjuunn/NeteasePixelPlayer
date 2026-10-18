@@ -101,6 +101,7 @@
     <!-- Your Mix -->
     <string name="home_your_mix_title">Your\nMix</string>
     <string name="home_empty_placeholder_title">Belum ada data untuk ditampilkan</string>
+    <string name="home_empty_placeholder_connect_hint">Sambungkan sumber musik untuk mulai mendengarkan</string>
     <string name="home_empty_placeholder_subtitle">Mix Anda akan muncul di sini saat PixelPlayer menemukan lagu atau menyinkronkan sumber.</string>
     <string name="home_empty_placeholder_refresh">Refresh</string>
 

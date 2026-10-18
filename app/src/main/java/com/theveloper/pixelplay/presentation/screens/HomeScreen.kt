@@ -3,6 +3,7 @@ package com.theveloper.pixelplay.presentation.screens
 import com.theveloper.pixelplay.presentation.navigation.navigateSafely
 import com.theveloper.pixelplay.presentation.navigation.navigateSafelyReplacing
 
+import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.background
@@ -107,6 +108,14 @@ import com.theveloper.pixelplay.presentation.components.subcomps.PlayingEqIcon
 import com.theveloper.pixelplay.presentation.navigation.Screen
 import com.theveloper.pixelplay.presentation.components.StreamingProviderSheet
 import com.theveloper.pixelplay.presentation.telegram.auth.TelegramLoginActivity
+import com.theveloper.pixelplay.presentation.netease.auth.NeteaseLoginActivity
+import com.theveloper.pixelplay.presentation.navidrome.auth.NavidromeLoginActivity
+import com.theveloper.pixelplay.presentation.qqmusic.auth.QqMusicLoginActivity
+import com.theveloper.pixelplay.presentation.jellyfin.auth.JellyfinLoginActivity
+import com.theveloper.pixelplay.presentation.components.CloudSourceEntry
+import com.theveloper.pixelplay.presentation.components.CloudSourceEntryRow
+import com.theveloper.pixelplay.presentation.components.cloudSourceEntry
+import com.theveloper.pixelplay.presentation.viewmodel.ExternalServiceAccount
 import com.theveloper.pixelplay.presentation.viewmodel.PlayerViewModel
 import com.theveloper.pixelplay.presentation.viewmodel.SettingsViewModel
 import com.theveloper.pixelplay.presentation.viewmodel.StatsViewModel
@@ -121,6 +130,14 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 import androidx.compose.ui.res.stringResource
 
 private const val HomeLoadingPlaceholderMinDurationMillis = 1200L
+
+/**
+ * Opens a source sign-in screen. A failed start must never crash Home, so the intent is guarded
+ * exactly like the accounts screen does.
+ */
+private fun Context.startLoginActivity(activityClass: Class<*>) {
+    runCatching { startActivity(Intent(this, activityClass)) }
+}
 
 // Modern HomeScreen with collapsible top bar and staggered grid layout
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -144,6 +161,10 @@ fun HomeScreen(
     }
     val statsViewModel: StatsViewModel = hiltViewModel()
     val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val isNeteaseLoggedIn by neteaseViewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val isQqMusicLoggedIn by qqMusicViewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val isNavidromeLoggedIn by navidromeViewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val isJellyfinLoggedIn by jellyfinViewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dailyMixSongs by playerViewModel.dailyMixSongs.collectAsStateWithLifecycle()
     val curatedYourMixSongs by playerViewModel.yourMixSongs.collectAsStateWithLifecycle()
     val homeMixPreviewSongs by playerViewModel.homeMixPreviewSongs.collectAsStateWithLifecycle()
@@ -259,6 +280,70 @@ fun HomeScreen(
 
     val homeStatsOverview by statsViewModel.homeOverview.collectAsStateWithLifecycle()
 
+    // Cloud source entries for the empty Home state: same sources, colors and click behaviour as
+    // the cloud streaming sheet, so a brand new user always has somewhere to go.
+    val neteaseSourceName = stringResource(R.string.auth_netease_title)
+    val qqMusicSourceName = stringResource(R.string.auth_qq_title)
+    val telegramSourceName = stringResource(R.string.auth_telegram_title)
+    val subsonicSourceName = stringResource(R.string.auth_subsonic_title)
+    val jellyfinSourceName = stringResource(R.string.auth_jellyfin_title)
+    val cloudSourceEntries = remember(
+        neteaseSourceName,
+        qqMusicSourceName,
+        telegramSourceName,
+        subsonicSourceName,
+        jellyfinSourceName,
+        isNeteaseLoggedIn,
+        isQqMusicLoggedIn,
+        isNavidromeLoggedIn,
+        isJellyfinLoggedIn
+    ) {
+        listOf(
+            cloudSourceEntry(ExternalServiceAccount.NETEASE, neteaseSourceName, isNeteaseLoggedIn),
+            cloudSourceEntry(ExternalServiceAccount.QQ_MUSIC, qqMusicSourceName, isQqMusicLoggedIn),
+            cloudSourceEntry(ExternalServiceAccount.TELEGRAM, telegramSourceName),
+            cloudSourceEntry(ExternalServiceAccount.NAVIDROME, subsonicSourceName, isNavidromeLoggedIn),
+            cloudSourceEntry(ExternalServiceAccount.JELLYFIN, jellyfinSourceName, isJellyfinLoggedIn)
+        )
+    }
+
+    val onOpenCloudSource: (ExternalServiceAccount) -> Unit = { service ->
+        when (service) {
+            ExternalServiceAccount.TELEGRAM ->
+                context.startLoginActivity(TelegramLoginActivity::class.java)
+
+            ExternalServiceAccount.NETEASE ->
+                if (isNeteaseLoggedIn) {
+                    navController.navigateSafely(Screen.NeteaseDashboard.route)
+                } else {
+                    context.startLoginActivity(NeteaseLoginActivity::class.java)
+                }
+
+            ExternalServiceAccount.QQ_MUSIC ->
+                if (isQqMusicLoggedIn) {
+                    navController.navigateSafely(Screen.QqMusicDashboard.route)
+                } else {
+                    context.startLoginActivity(QqMusicLoginActivity::class.java)
+                }
+
+            ExternalServiceAccount.NAVIDROME ->
+                if (isNavidromeLoggedIn) {
+                    navController.navigateSafely(Screen.NavidromeDashboard.route)
+                } else {
+                    context.startLoginActivity(NavidromeLoginActivity::class.java)
+                }
+
+            ExternalServiceAccount.JELLYFIN ->
+                if (isJellyfinLoggedIn) {
+                    navController.navigateSafely(Screen.JellyfinDashboard.route)
+                } else {
+                    context.startLoginActivity(JellyfinLoginActivity::class.java)
+                }
+
+            ExternalServiceAccount.GOOGLE_DRIVE -> Unit
+        }
+    }
+
     val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     val density = LocalDensity.current
     val scrollThresholdPx = remember(density) { with(density) { 180.dp.toPx() } }
@@ -357,7 +442,9 @@ fun HomeScreen(
                                     homePlaceholderRefreshGeneration++
                                     settingsViewModel.refreshLibrary()
                                     playerViewModel.forceUpdateDailyMix()
-                                }
+                                },
+                                sourceEntries = cloudSourceEntries,
+                                onSourceClick = onOpenCloudSource
                             )
                         }
                     }
@@ -549,10 +636,6 @@ fun HomeScreen(
         }
     }
     if (showStreamingProviderSheet) {
-        val isNeteaseLoggedIn by neteaseViewModel.isLoggedIn.collectAsStateWithLifecycle()
-        val isQqMusicLoggedIn by qqMusicViewModel.isLoggedIn.collectAsStateWithLifecycle()
-        val isNavidromeLoggedIn by navidromeViewModel.isLoggedIn.collectAsStateWithLifecycle()
-        val isJellyfinLoggedIn by jellyfinViewModel.isLoggedIn.collectAsStateWithLifecycle()
         StreamingProviderSheet(
             onDismissRequest = { showStreamingProviderSheet = false },
             isNeteaseLoggedIn = isNeteaseLoggedIn,
@@ -604,7 +687,9 @@ private fun YourMixLoadingPlaceholder() {
 
 @Composable
 private fun YourMixEmptyPlaceholder(
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    sourceEntries: List<CloudSourceEntry>,
+    onSourceClick: (ExternalServiceAccount) -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -662,6 +747,12 @@ private fun YourMixEmptyPlaceholder(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+
+            CloudSourceEntryRow(
+                entries = sourceEntries,
+                onEntryClick = { onSourceClick(it.service) },
+                hint = stringResource(R.string.home_empty_placeholder_connect_hint)
+            )
 
             FilledTonalButton(
                 onClick = onRefresh,

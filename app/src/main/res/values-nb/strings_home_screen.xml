@@ -101,6 +101,7 @@
     <!-- Your Mix -->
     <string name="home_your_mix_title">Din\nMix</string>
     <string name="home_empty_placeholder_title">Ingen data å vise ennå</string>
+    <string name="home_empty_placeholder_connect_hint">Koble til en musikkilde for å begynne å lytte</string>
     <string name="home_empty_placeholder_subtitle">Miksen din vises her når PixelPlayer finner sanger eller synkroniserer en kilde.</string>
     <string name="home_empty_placeholder_refresh">Oppdater</string>
 

@@ -133,6 +133,7 @@
     <string name="home_your_mix_title">المزيج\nالخاص بك</string>
     <string name="home_empty_placeholder_title">لا توجد بيانات لعرضها بعد</string>
     <string name="home_empty_placeholder_subtitle">سيظهر المزيج الخاص بك هنا عندما يجد PixelPlayer أغانٍ أو يقوم بمزامنة أحد المصادر.</string>
+    <string name="home_empty_placeholder_connect_hint">وصّل مصدر موسيقى لبدء الاستماع</string>
     <string name="home_empty_placeholder_refresh">تحديث</string>
     <string name="cd_shuffle_play">تشغيل عشوائي</string>
     <string name="cd_album_art_for_title">غلاف ألبوم لـ %1$s</string>

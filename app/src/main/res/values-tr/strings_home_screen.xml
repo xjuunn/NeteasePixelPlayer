@@ -101,6 +101,7 @@
     <!-- Your Mix -->
     <string name="home_your_mix_title">Sizin\nMix</string>
     <string name="home_empty_placeholder_title">Henüz gösterilecek veri yok</string>
+    <string name="home_empty_placeholder_connect_hint">Dinlemeye başlamak için bir müzik kaynağı bağlayın</string>
     <string name="home_empty_placeholder_subtitle">PixelPlayer şarkıları bulduğunda veya bir kaynağı senkronize ettiğinde miksiniz burada görünecektir.</string>
     <string name="home_empty_placeholder_refresh">Yenile</string>
 
