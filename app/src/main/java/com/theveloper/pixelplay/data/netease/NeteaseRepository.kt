@@ -486,7 +486,7 @@ class NeteaseRepository @Inject constructor(
 
     // ─── Song URL Resolution ───────────────────────────────────────────
 
-    suspend fun getSongUrl(songId: Long, quality: String = "lossless"): Result<String> {
+    suspend fun getSongUrl(songId: Long, quality: String = "exhigh"): Result<String> {
         val now = System.currentTimeMillis()
         val lastAttempt = lastSongUrlAttemptAtMs[songId]
         if (lastAttempt != null && now - lastAttempt < songUrlRequestCooldownMs) {

@@ -32,5 +32,6 @@ data class ResolvedSongUrl(
     val providerId: String
 )
 
-/** Netease quality levels, highest first. Used for graceful quality fallback. */
-internal val AUDIO_QUALITY_LEVELS = listOf("lossless", "exhigh", "higher", "standard")
+/** Netease quality levels, tried in this order. `lossless` is last because it most often
+ * triggers a free-trial or downgraded result for accounts without SVIP. */
+internal val AUDIO_QUALITY_LEVELS = listOf("exhigh", "higher", "standard", "lossless")

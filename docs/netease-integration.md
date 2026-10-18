@@ -46,6 +46,7 @@
 
 - B4 VKEYS：业务层恒返回 `code=500`，直接跳过，不封装。
 - A17 Mycelis：对版权/VIP 歌曲返回 `code=404`、`url=null`，仅在其余音源全部失败后尝试，且必须判空。
+- 官方直链试听片段：官方接口对无完整播放权限的歌曲（VIP/付费专辑）会返回可播放但仅前 30 秒的直链，并带 `freeTrialInfo` 或 `freeTrialPrivilege`（`resConsumable`/`cannotListenReason`）。命中即视为失败并降级到第三方，避免 VIP 歌曲被截断。默认档位为 `exhigh`。
 - A4 歌曲详情：部分字段可能为 `null`，读取时返回默认值，不抛异常。
 
 ## 4. 音源优先级与重试

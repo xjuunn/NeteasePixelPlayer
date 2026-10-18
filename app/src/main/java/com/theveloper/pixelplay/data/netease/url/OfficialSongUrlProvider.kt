@@ -36,24 +36,48 @@ class OfficialSongUrlProvider @Inject constructor(
     private val minRequestIntervalMs = 1100L
 
     override suspend fun resolve(songId: Long, quality: String): List<String> {
-        val levels = linkedSetOf(quality).apply {
-            addAll(AUDIO_QUALITY_LEVELS)
-        }
+        val levels = (listOf(quality) + AUDIO_QUALITY_LEVELS).distinct()
         for (level in levels) {
             val raw = requestThrottled { api.getSongDownloadUrl(songId, level) }
             val root = runCatching { JSONObject(raw) }.getOrNull() ?: continue
             if (root.optInt("code", -1) != 200) continue
 
-            val url = root.optJSONArray("data")
-                ?.optJSONObject(0)
-                ?.optString("url", "")
-                .orEmpty()
-            if (url.startsWith("http")) {
-                Timber.d("OfficialSongUrlProvider: resolved songId=$songId level=$level")
-                return listOf(url)
+            val urlObj = root.optJSONArray("data")?.optJSONObject(0) ?: continue
+            val url = urlObj.optString("url", "").orEmpty()
+            if (!url.startsWith("http")) continue
+
+            if (isFreeTrialOrRestricted(urlObj)) {
+                // No full-play privilege (VIP or paid album): the URL is only a short preview.
+                // Skip it so the resolver falls back to third-party sources for the full track.
+                Timber.d(
+                    "OfficialSongUrlProvider: free trial/restricted clip for songId=$songId level=$level, falling back"
+                )
+                continue
             }
+
+            Timber.d("OfficialSongUrlProvider: resolved songId=$songId level=$level")
+            return listOf(url)
         }
         return emptyList()
+    }
+
+    /**
+     * Detect a free-trial or otherwise restricted result. The official API returns a playable
+     * (but truncated) preview URL together with these markers, so accepting `url` alone would
+     * silently limit VIP songs to the preview length.
+     */
+    private fun isFreeTrialOrRestricted(urlObj: JSONObject): Boolean {
+        if (urlObj.optInt("code", 200) != 200) return true
+
+        val freeTrialInfo = urlObj.opt("freeTrialInfo")
+        if (freeTrialInfo != null && freeTrialInfo != JSONObject.NULL) return true
+
+        val privilege = urlObj.optJSONObject("freeTrialPrivilege")
+        if (privilege != null) {
+            if (privilege.optBoolean("resConsumable", false)) return true
+            if (privilege.optInt("cannotListenReason", 0) != 0) return true
+        }
+        return false
     }
 
     private suspend fun requestThrottled(block: suspend () -> String): String {
