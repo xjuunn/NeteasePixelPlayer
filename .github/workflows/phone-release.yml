@@ -29,27 +29,25 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Cache keystore
-        id: cache-keystore
-        uses: actions/cache@v5
-        with:
-          path: vz-pixelplay.jks
-          key: ${{ runner.os }}-keystore-vz-pixelplay
-
-
-# This is not the official release key, those apk's will be universal and manually uploaded.
-      - name: Generate keystore if not cached
-        if: steps.cache-keystore.outputs.cache-hit != 'true'
+      - name: Restore release keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
-          keytool -genkey -v -keystore vz-pixelplay.jks -alias pixelplay-key -keyalg RSA -keysize 4096 -validity 10000 \
-            -storepass 994273 -keypass 994273 \
-            -dname "CN=PixelPlay, OU=Dev, O=PixelPlay, L=World, S=World, C=US"
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "::error::Secret RELEASE_KEYSTORE_BASE64 未配置，无法产出正式签名的 release 包。"
+            exit 1
+          fi
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 -d > vz-pixelplay.jks
 
       - name: Create keystore.properties
+        env:
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          echo "storePassword=994273" > keystore.properties
-          echo "keyAlias=pixelplay-key" >> keystore.properties
-          echo "keyPassword=994273" >> keystore.properties
+          echo "storePassword=$STORE_PASSWORD" > keystore.properties
+          echo "keyAlias=$KEY_ALIAS" >> keystore.properties
+          echo "keyPassword=$KEY_PASSWORD" >> keystore.properties
 
       - name: Build Phone release APK
         run: gradle :app:assembleRelease -Ppixelplay.enableAbiSplits=true
