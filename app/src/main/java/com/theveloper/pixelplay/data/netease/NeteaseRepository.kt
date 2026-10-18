@@ -215,6 +215,8 @@ class NeteaseRepository @Inject constructor(
                 var offset = 0
                 var page = 0
                 var hasMore = true
+                var reportedTotal = -1
+                var reachedPageGuard = false
 
                 while (hasMore) {
                     val raw = api.getUserPlaylists(
@@ -230,14 +232,19 @@ class NeteaseRepository @Inject constructor(
                         return@withContext Result.failure(Exception("API error: code ${root.optInt("code")}"))
                     }
 
+                    val totalCount = root.optInt("count", -1)
+                    if (totalCount > 0) reportedTotal = totalCount
+
                     val playlistArray = root.optJSONArray("playlist") ?: break
                     val fetchedCount = playlistArray.length()
                     if (fetchedCount == 0) break
 
+                    var newInPage = 0
                     for (i in 0 until fetchedCount) {
                         val pl = playlistArray.optJSONObject(i) ?: continue
                         val id = pl.optLong("id")
                         if (id <= 0L) continue
+                        if (!entitiesById.containsKey(id)) newInPage += 1
                         entitiesById[id] = NeteasePlaylistEntity(
                             id = id,
                             name = pl.optString("name", ""),
@@ -248,7 +255,6 @@ class NeteaseRepository @Inject constructor(
                     }
 
                     offset += fetchedCount
-                    val totalCount = root.optInt("count", -1)
                     val moreFlag = root.optBoolean("more", false)
                     hasMore = when {
                         moreFlag -> true
@@ -257,8 +263,16 @@ class NeteaseRepository @Inject constructor(
                     }
 
                     page += 1
+                    // Some endpoints ignore offset/limit and keep returning the same page.
+                    // Stop here instead of running to the page guard, otherwise the local
+                    // cache ends up looking like a partial snapshot of the account.
+                    if (hasMore && newInPage == 0) {
+                        Timber.w("syncUserPlaylists: page=$page returned no new playlists, stopping pagination")
+                        hasMore = false
+                    }
                     if (page >= NETEASE_MAX_PLAYLIST_PAGES) {
                         Timber.w("syncUserPlaylists: reached max page guard ($NETEASE_MAX_PLAYLIST_PAGES), stopping pagination")
+                        reachedPageGuard = true
                         hasMore = false
                     }
                 }
@@ -266,8 +280,36 @@ class NeteaseRepository @Inject constructor(
                 val entities = entitiesById.values.toList()
 
                 val localPlaylists = dao.getAllPlaylistsList()
+
+                // Data-loss guard, same contract as Jellyfin/Navidrome: never prune the local
+                // cache from an empty or partial remote snapshot. A transient API failure, an
+                // expired cookie that still answers code 200, or a truncated pagination run
+                // would otherwise delete the imported playlists, their cached songs and the
+                // matching library playlists. Pruning stays allowed for a complete snapshot
+                // where playlists were really removed on the server.
+                if (entities.isEmpty()) {
+                    if (localPlaylists.isNotEmpty()) {
+                        Timber.w(
+                            "syncUserPlaylists: remote returned no playlists but ${localPlaylists.size} exist locally; keeping local data"
+                        )
+                        return@withContext Result.failure(
+                            Exception("Empty remote playlist response; local playlists kept")
+                        )
+                    }
+                    return@withContext Result.success(entities)
+                }
+
                 val remoteIds = entities.map { it.id }.toSet()
-                val stalePlaylists = localPlaylists.filter { it.id !in remoteIds }
+                val remoteSnapshotComplete =
+                    !reachedPageGuard && (reportedTotal <= 0 || entities.size >= reportedTotal)
+                val stalePlaylists = if (remoteSnapshotComplete) {
+                    localPlaylists.filter { it.id !in remoteIds }
+                } else {
+                    Timber.w(
+                        "syncUserPlaylists: partial snapshot (got=${entities.size}, total=$reportedTotal, pageGuard=$reachedPageGuard); skipping prune"
+                    )
+                    emptyList()
+                }
 
                 stalePlaylists.forEach { stale ->
                     dao.deleteSongsByPlaylist(stale.id)
@@ -372,6 +414,21 @@ class NeteaseRepository @Inject constructor(
                 if (expectedTrackCount > 0 && entities.size < expectedTrackCount) {
                     Timber.w(
                         "syncPlaylistSongs: playlistId=$playlistId expected=$expectedTrackCount synced=${entities.size} (API may still be limiting some tracks)"
+                    )
+                }
+
+                // Data-loss guard: an empty result for a playlist that is supposed to hold
+                // tracks means the detail call failed or came back partial (rate limiting,
+                // expired cookie, blocked request). Keep the cached songs and the library
+                // playlist untouched instead of wiping them. Only a playlist the server
+                // explicitly reports as empty (trackCount == 0) may be cleared.
+                val declaredTrackCount = playlist.optInt("trackCount", -1)
+                if (entities.isEmpty() && declaredTrackCount != 0) {
+                    Timber.w(
+                        "syncPlaylistSongs: playlistId=$playlistId returned no tracks (trackCount=$declaredTrackCount); keeping local cache"
+                    )
+                    return@withContext Result.failure(
+                        Exception("Empty remote track response; local playlist kept")
                     )
                 }
 

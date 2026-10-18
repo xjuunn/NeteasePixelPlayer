@@ -103,6 +103,16 @@
 - 同步：复用 `syncUserPlaylists()`、`syncPlaylistSongs()`、`syncAllPlaylistsAndSongs()`，同步后写入统一 `songs` 表（`MusicDao.incrementalSyncMusicData`），并镜像歌单到应用歌单。
 - 不在同步流程中引入长耗时同步网络调用；分批与节流。
 
+### 7.1 删除类写入的防护契约
+
+本地缓存（`netease_playlists`、`netease_songs`）与镜像到音乐库的应用歌单都以同步结果为准写入，因此“拿不到数据”必须与“服务器上确实没有数据”严格区分，否则一次网络抖动就会永久删除已导入的音乐。与 `JellyfinRepository`、`NavidromeRepository` 的既有约定一致：
+
+1. `syncUserPlaylists()` 只有在远端快照完整时才清理陈旧歌单。空响应（本地仍有歌单）直接返回失败、不做任何删除；命中分页上限、翻页无新增条目、或返回数量小于服务端 `count` 时视为不完整快照，跳过清理。
+2. `syncPlaylistSongs()` 只有在服务端明确报告歌单为空（`trackCount == 0`）时才清空本地歌曲。歌单声明有歌曲但一条都没解析到时返回失败，保留本地歌曲与音乐库歌单。
+3. 上层调用必须把 `Result.failure` 当作“保持现状”，不得据此清空统一库（见 `syncUnifiedLibrarySongsFromNetease`）。
+
+修改同步逻辑时不得放宽以上三条；如需新增删除类写入，必须先补齐同等防护与日志。
+
 ## 8. 下载
 
 - 下载复用第 4 节解析出的直链与共享 OkHttp，不得为下载单独实现一套音源解析。
