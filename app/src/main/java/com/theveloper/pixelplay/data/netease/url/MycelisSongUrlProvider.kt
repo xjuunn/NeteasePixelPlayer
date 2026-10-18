@@ -12,6 +12,9 @@ import javax.inject.Singleton
  * This endpoint is restricted and returns `code=404` with a null URL for copyright/VIP songs, so it
  * is only reached after every other provider has been exhausted. `maxAttempts` is 1 to keep calls
  * to the restricted gateway to a minimum.
+ *
+ * Not wired into [SongUrlResolver]: the chain stops at Qijieya and then falls back to the official
+ * link as returned (preview included). Kept for reference in case the gateway is needed again.
  */
 @Singleton
 class MycelisSongUrlProvider @Inject constructor(

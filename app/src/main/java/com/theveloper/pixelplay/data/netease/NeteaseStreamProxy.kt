@@ -1,5 +1,6 @@
 package com.theveloper.pixelplay.data.netease
 
+import com.theveloper.pixelplay.data.netease.url.NETEASE_STREAM_HOST_SUFFIXES
 import com.theveloper.pixelplay.data.stream.CloudStreamProxy
 import com.theveloper.pixelplay.data.stream.CloudStreamSecurity
 import okhttp3.OkHttpClient
@@ -18,14 +19,7 @@ class NeteaseStreamProxy @Inject constructor(
     okHttpClient: OkHttpClient
 ) : CloudStreamProxy<Long>(okHttpClient) {
 
-    override val allowedHostSuffixes = setOf(
-        "music.126.net",
-        "music.163.com",
-        "126.net",
-        "163.com",
-        // Qijieya returns the audio stream itself, so the proxy fetches directly from it.
-        "qijieya.cn"
-    )
+    override val allowedHostSuffixes = NETEASE_STREAM_HOST_SUFFIXES
     override val cacheExpirationMs = 15L * 60 * 1000
     override val proxyTag = "NeteaseStreamProxy"
     override val routePath = "/netease/{songId}"

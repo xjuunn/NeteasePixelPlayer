@@ -62,6 +62,7 @@ class NeteaseRepository @Inject constructor(
         private const val NETEASE_PLAYLIST_PAGE_SIZE = 50
         private const val NETEASE_SONG_DETAIL_BATCH_SIZE = 500
         private const val NETEASE_MAX_PLAYLIST_PAGES = 200
+        private const val SONG_URL_CACHE_TTL_MS = 10L * 60 * 1000
     }
 
     private val prefs: SharedPreferences = try {
@@ -84,8 +85,12 @@ class NeteaseRepository @Inject constructor(
     val isLoggedInFlow: StateFlow<Boolean> = _isLoggedInFlow.asStateFlow()
 
     private val inFlightSongUrlRequests = java.util.concurrent.ConcurrentHashMap<Long, CompletableDeferred<Result<String>>>()
-    private val lastSongUrlAttemptAtMs = java.util.concurrent.ConcurrentHashMap<Long, Long>()
+    // Cooldown applies only to repeated failures; blocking a legitimate retry made playback fail.
+    private val lastSongUrlFailureAtMs = java.util.concurrent.ConcurrentHashMap<Long, Long>()
+    private val songUrlCache = java.util.concurrent.ConcurrentHashMap<String, CachedSongUrl>()
     private val songUrlRequestCooldownMs = 1500L
+
+    private class CachedSongUrl(val url: String, val expiresAtMs: Long)
 
     init {
         // Auto-load saved cookies on creation so API client is ready
@@ -145,6 +150,9 @@ class NeteaseRepository @Inject constructor(
                 // Initialize API client with cookies
                 api.setPersistedCookies(cookies)
 
+                // Privileges and signed links belong to the previous session.
+                invalidateSongUrlCaches()
+
                 // Fetch user info
                 val userAccountRaw = api.getCurrentUserAccount()
                 val root = JSONObject(userAccountRaw)
@@ -174,6 +182,7 @@ class NeteaseRepository @Inject constructor(
     suspend fun logout() {
         api.logout()
         clearLoginState()
+        invalidateSongUrlCaches()
         
         // Delete all Netease playlists from the database
         val neteasePlaylistsToDelete = dao.getAllPlaylistsList()
@@ -545,12 +554,22 @@ class NeteaseRepository @Inject constructor(
 
     suspend fun getSongUrl(songId: Long, quality: String = "exhigh"): Result<String> {
         val now = System.currentTimeMillis()
-        val lastAttempt = lastSongUrlAttemptAtMs[songId]
-        if (lastAttempt != null && now - lastAttempt < songUrlRequestCooldownMs) {
+        val cacheKey = "$songId:$quality"
+        songUrlCache[cacheKey]?.let { cached ->
+            if (now < cached.expiresAtMs) {
+                Timber.d("Netease song URL cache hit: songId=$songId")
+                return Result.success(cached.url)
+            }
+            songUrlCache.remove(cacheKey, cached)
+        }
+
+        // Only repeated failures are throttled: treating a first attempt as one blocked any
+        // legitimate retry made shortly afterwards, which surfaced as playback failing outright.
+        val lastFailureAt = lastSongUrlFailureAtMs[songId]
+        if (lastFailureAt != null && now - lastFailureAt < songUrlRequestCooldownMs) {
             Timber.d("Skip Netease song URL retry due to cooldown: songId=$songId")
             return Result.failure(IllegalStateException("Netease song URL request throttled"))
         }
-        lastSongUrlAttemptAtMs[songId] = now
 
         inFlightSongUrlRequests[songId]?.let {
             return it.await()
@@ -564,15 +583,35 @@ class NeteaseRepository @Inject constructor(
 
         val result = withContext(Dispatchers.IO) {
             runCatching {
-                // Delegate to the provider chain: official -> Byfuns -> Qijieya -> Mycelis.
+                // Delegate to the provider chain: official -> Byfuns -> Qijieya, then the official
+                // link as returned (preview included) as the last resort.
                 // See docs/netease-integration.md for the priority and retry rules.
                 songUrlResolver.resolve(songId, quality).getOrThrow().url
             }
         }
 
+        if (result.isSuccess) {
+            result.getOrNull()?.let { url ->
+                songUrlCache[cacheKey] = CachedSongUrl(url, System.currentTimeMillis() + SONG_URL_CACHE_TTL_MS)
+            }
+            lastSongUrlFailureAtMs.remove(songId)
+        } else {
+            lastSongUrlFailureAtMs[songId] = System.currentTimeMillis()
+        }
+
         requestDeferred.complete(result)
         inFlightSongUrlRequests.remove(songId, requestDeferred)
         return result
+    }
+
+    /**
+     * Forgets every cached song URL and the official-source verdicts. Called when the account
+     * changes: both the privileges and the signed links belong to the previous session.
+     */
+    fun invalidateSongUrlCaches() {
+        songUrlCache.clear()
+        lastSongUrlFailureAtMs.clear()
+        songUrlResolver.invalidateOfficialCaches()
     }
 
     // ─── Lyrics ────────────────────────────────────────────────────────

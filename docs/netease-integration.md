@@ -45,8 +45,8 @@
 ## 3. 不可用与受限处理
 
 - B4 VKEYS：业务层恒返回 `code=500`，直接跳过，不封装。
-- A17 Mycelis：对版权/VIP 歌曲返回 `code=404`、`url=null`，仅在其余音源全部失败后尝试，且必须判空。
-- 官方直链试听片段：官方接口对无完整播放权限的歌曲（VIP/付费专辑）会返回可播放但仅前 30 秒的直链，并带 `freeTrialInfo` 或 `freeTrialPrivilege`（`resConsumable`/`cannotListenReason`）。命中即视为失败并降级到第三方，避免 VIP 歌曲被截断。默认档位为 `exhigh`。
+- A17 Mycelis：对版权/VIP 歌曲返回 `code=404`、`url=null`。当前不接入直链链路（类保留，仅歌词仍用 A18）。
+- 官方直链试听片段：官方接口对无完整播放权限的歌曲（VIP/付费专辑）会返回可播放但仅前 30 秒的直链，并带 `freeTrialInfo` 或 `freeTrialPrivilege`（`resConsumable`/`cannotListenReason`）。命中即视为失败并降级到第三方，避免 VIP 歌曲被截断。默认档位为 `exhigh`。权限属于歌曲而非音质档位，因此命中后立即结束档位循环，并记一条负缓存，避免每次播放都重复整轮请求。
 - A4 歌曲详情：部分字段可能为 `null`，读取时返回默认值，不抛异常。
 
 ## 4. 音源优先级与重试
@@ -56,26 +56,28 @@
 1. 直连官方接口（含登录态）。
 2. B3 Byfuns。
 3. B1 Qijieya。
-4. A17 Mycelis（`mycelis.dpdns`，最后使用）。
+4. 官方直链兜底：以上全部失败时，直接采用官方接口返回的链接（含试听片段），与本应用原始行为一致——宁可播 30 秒也不直接失败。
 
-实现位置：`data/netease/url/`。`SongUrlResolver.resolve` 按 `SongUrlProvider.priority` 升序调用，`NeteaseRepository.getSongUrl` 在其外层做 in-flight 去重与单曲冷却。
+实现位置：`data/netease/url/`。`SongUrlResolver.resolve` 按 `SongUrlProvider.priority` 升序调用，全部失败后才走兜底；`NeteaseRepository.getSongUrl` 在其外层做 in-flight 去重与失败冷却。
 
 规则：
 
-- 每个音源最多重试 3 次（指数退避 + 抖动），全部失败才进入下一音源。
-- `mycelis.dpdns` 只在所有其它音源失败后请求，尽量减少调用。
+- 重试次数按音源单独设定：官方 `maxAttempts=1`（一次 resolve 已遍历音质档位），Byfuns `1`，Qijieya `2`；重试间隔为线性退避加抖动。全部失败才进入下一音源。
+- 候选直链必须通过主机名白名单（`NETEASE_STREAM_HOST_SUFFIXES`）校验，白名单与 `NeteaseStreamProxy` 共用一份：代理会拒绝的链接如果被当作成功返回，播放器会在 15 分钟缓存内反复拿到同一个 502。
+- 被代理拒绝、上游 403/404/416 或响应非音频的链接立即从缓存剔除，下次重新解析。
+- 官方音源带歌曲级负缓存（默认 10 分钟）与试听链接缓存（默认 3 分钟），登录或登出时一并清空。
 - 每个音源单独适配响应形态，不得共用解析代码。
-- 各音源返回“候选直链列表”，播放器按顺序尝试；先到先得。
-- 同一歌曲做 in-flight 去重与冷却节流，避免重复与并发风暴（细节见 docs/playback-and-streaming.md）。
+- 同一歌曲做 in-flight 去重，避免重复与并发风暴（细节见 docs/playback-and-streaming.md）。
+- `NeteaseRepository.getSongUrl` 只缓存成功结果 10 分钟；冷却只作用于连续失败，成功结果不再被冷却拦截。
 
 ## 5. 各音源响应适配
 
 | 音源 | 返回形态 | 适配要点 |
 | --- | --- | --- |
-| 官方直连 | JSON | 读直链字段；`code=301` 时先补会话再重试一次；按音质档位回退 |
+| 官方直连 | JSON | 读直链字段；`code=301` 时先补会话再重试一次；命中试听即停止档位循环并记负缓存 |
 | B3 Byfuns | 纯文本 | 响应体即直链，需以 `http` 开头，否则视为无效；不使用 `lossless`（返回 FLAC） |
 | B1 Qijieya | 音频流 | URL 本身即直链；探测响应头 `Content-Type` 以 `audio/` 开头即视为可用 |
-| A17 Mycelis | JSON | 读 `data[0].url`，非 `http(s)` 视为无效；档位 `standard -> higher -> exhigh -> lossless` |
+| A17 Mycelis | JSON | 直链链路未接入，保留实现备查（见第 4 节）；`data[0].url` 非 `http(s)` 视为无效 |
 | B2 Qijieya 歌词 | 纯文本 LRC | 首选，直接解析，无需 JSON |
 | A18 Mycelis 歌词 | JSON | 回退，`code=200` 时取 `lrc.lyric` |
 

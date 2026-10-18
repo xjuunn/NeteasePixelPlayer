@@ -168,6 +168,15 @@ abstract class CloudStreamProxy<K : Any>(
         }
     }
 
+    /**
+     * Drops a cached link that cannot be streamed: a host the allowlist rejects, a dead upstream,
+     * or an unsupported payload. Without this the bad URL keeps being served for the whole cache
+     * lifetime, so every player retry fails identically until the entry expires.
+     */
+    protected fun invalidateStreamUrl(id: K, url: String) {
+        urlCache.computeIfPresent(id) { _, cached -> if (cached.url == url) null else cached }
+    }
+
     private fun createServer(port: Int): EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration> {
         return embeddedServer(CIO, port = port, host = "127.0.0.1") {
             routing {
@@ -202,6 +211,9 @@ abstract class CloudStreamProxy<K : Any>(
                                 allowHttpForAllowedHosts = true
                             )
                         ) {
+                            // The resolver may still hand over a link outside the allowlist, so
+                            // drop it instead of serving the same rejection for 15 minutes.
+                            invalidateStreamUrl(id, streamUrl)
                             call.respond(HttpStatusCode.BadGateway, "Rejected upstream stream URL")
                             return@get
                         }
@@ -217,6 +229,11 @@ abstract class CloudStreamProxy<K : Any>(
 
                         response.use { upstream ->
                             if (upstream.code != 200 && upstream.code != 206) {
+                                if (upstream.code == 403 || upstream.code == 404 || upstream.code == 416) {
+                                    // Signed or otherwise dead link: re-resolve on the next request
+                                    // instead of reusing a URL the upstream already refused.
+                                    invalidateStreamUrl(id, streamUrl)
+                                }
                                 call.respond(
                                     CloudStreamSecurity.mapUpstreamStatusToProxyStatus(upstream.code),
                                     "Upstream stream request failed"
@@ -228,6 +245,8 @@ abstract class CloudStreamProxy<K : Any>(
                             val contentTypeHeader = upstream.header("Content-Type")
 
                             if (!CloudStreamSecurity.isSupportedAudioContentType(contentTypeHeader)) {
+                                // Not audio: this link will never stream, so it must not be cached.
+                                invalidateStreamUrl(id, streamUrl)
                                 call.respond(
                                     HttpStatusCode.BadGateway,
                                     "Unsupported stream content type"

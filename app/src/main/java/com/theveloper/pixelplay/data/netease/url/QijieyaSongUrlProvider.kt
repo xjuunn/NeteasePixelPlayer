@@ -20,6 +20,10 @@ class QijieyaSongUrlProvider @Inject constructor(
 
     override val priority: Int = 2
 
+    // A single probe is cheap but transient timeouts do happen, so allow one retry only:
+    // three rounds of opening a stream connection made failed lookups painfully slow.
+    override val maxAttempts: Int = 2
+
     override suspend fun resolve(songId: Long, quality: String): List<String> {
         val url = "https://api.qijieya.cn/meting/?type=url&id=" + songId
         val contentType = try {
